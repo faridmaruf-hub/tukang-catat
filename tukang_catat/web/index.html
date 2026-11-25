@@ -57,10 +57,10 @@
         <p class="hint">Rekaman selesai. Pastikan semua pembicara sudah diberi nama, lalu jalankan transkripsi.</p>
         <label>Model Whisper
           <select id="in-model">
+            <option value="large-v3-turbo" selected>large-v3-turbo: akurat (disarankan)</option>
             <option value="small">small: cepat, akurasi cukup</option>
-            <option value="medium" selected>medium: seimbang</option>
-            <option value="large-v3-turbo">large-v3-turbo: akurat</option>
-            <option value="large-v3">large-v3: paling akurat, paling lambat</option>
+            <option value="medium">medium</option>
+            <option value="large-v3">large-v3: paling akurat, butuh GPU</option>
           </select>
         </label>
         <label>Bahasa

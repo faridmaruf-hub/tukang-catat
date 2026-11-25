@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 
 from tukang_catat.speakers import SpeakerTracker
-from tukang_catat.transcribe import group_turns
+from tukang_catat.transcribe import group_turns, pack_windows
 
 
 def voice(seed, noise=0.0, rng=np.random.default_rng(42)):
@@ -57,6 +57,17 @@ class TestGroupTurns(unittest.TestCase):
         turns = group_turns(segs)
         self.assertEqual([(t["speaker"], t["start"], t["end"]) for t in turns],
                          [("A", 0.0, 6.0), ("B", 6.5, 8.0), ("A", 12.0, 14.0)])
+
+    def test_pengemasan_jendela_per_bahasa(self):
+        sr = 16000
+        turns = [{"language": l} for l in ["id", "id", "en", "id"]]
+        clips = [np.ones(5 * sr, dtype=np.float32) for _ in turns]
+        wins = pack_windows(turns, clips)
+        self.assertEqual(len(wins), 3)  # id+id | en | id
+        self.assertEqual([w["language"] for w in wins], ["id", "en", "id"])
+        # kata di detik ke-1 milik giliran 0, di detik ke-7 milik giliran 1
+        self.assertEqual(wins[0]["locate"](1.0), 0)
+        self.assertEqual(wins[0]["locate"](7.0), 1)
 
     def test_giliran_panjang_dipecah(self):
         segs = [{"speaker": "A", "start": i * 10.0, "end": i * 10.0 + 9.5} for i in range(5)]

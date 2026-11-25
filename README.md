@@ -103,7 +103,7 @@ Lebih baik sedikit terlalu sering bertanya, karena itu mudah dikoreksi dengan me
 | Tingkat | Spesifikasi | Model Whisper |
 |---|---|---|
 | Minimum | CPU 4 core, RAM 8 GB | `small` |
-| Direkomendasikan | CPU 8+ core, RAM 16 GB | `medium` / `large-v3-turbo` |
+| Direkomendasikan | CPU 8+ core, RAM 16 GB | `large-v3-turbo` (~30 mnt per 1 jam rapat) |
 | Optimal | GPU NVIDIA dengan VRAM 6 GB+ | `large-v3` |
 
 Penjelasan lengkap, termasuk catatan untuk Mac: **[docs/KEBUTUHAN-HARDWARE.md](docs/KEBUTUHAN-HARDWARE.md)**.

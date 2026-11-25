@@ -110,7 +110,7 @@ def speaker_clip(sid: str, speaker_id: int) -> Response:
 
 
 class TranscribeRequest(BaseModel):
-    model: str = "medium"
+    model: str = "large-v3-turbo"
     language: str = "auto"
 
 

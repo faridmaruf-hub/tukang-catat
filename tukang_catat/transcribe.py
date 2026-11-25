@@ -1,9 +1,13 @@
-"""Transkripsi setelah rapat: Whisper per giliran bicara -> transkrip berlabel.
+"""Transkripsi setelah rapat: Whisper + giliran bicara -> transkrip berlabel.
 
-Karena saat rapat kita sudah tahu KAPAN dan SIAPA yang bicara, audio dipotong
-per giliran bicara dan tiap potongan ditranskripsi sendiri. Keuntungannya:
-- teks tidak mungkin "bocor" ke pembicara lain di batas giliran;
-- bahasa dideteksi per giliran (rapat campuran Indonesia-Inggris aman).
+Karena saat rapat kita sudah tahu KAPAN dan SIAPA yang bicara:
+1. Bahasa tiap giliran dideteksi dengan model `tiny` (murah), sehingga rapat
+   campuran Indonesia-Inggris tidak "diterjemahkan" ke satu bahasa.
+2. Giliran berurutan yang berbahasa sama DIKEMAS ke satu jendela <= 28 detik,
+   dipisah jeda hening buatan. Whisper selalu membayar biaya jendela 30 detik,
+   jadi pengemasan ini jauh lebih cepat daripada satu panggilan per giliran.
+3. Kata hasil transkripsi dikembalikan ke giliran asalnya berdasarkan posisi
+   waktunya di dalam jendela; jeda hening membuat batas giliran jelas.
 
 Bisa juga dijalankan langsung dari terminal:
     python -m tukang_catat.transcribe recordings/<sesi> --model medium
@@ -24,7 +28,9 @@ OUTPUT_MD = "transkrip.md"
 OUTPUT_JSON = "transkrip.json"
 MERGE_GAP_SEC = 1.5   # potongan berurutan dari orang yang sama digabung
 MAX_TURN_SEC = 28.0   # sedikit di bawah jendela 30 detik Whisper
-PAD_SEC = 0.25
+PAD_SEC = 0.15        # sedikit audio di kiri-kanan tiap giliran
+SEP_SEC = 0.8         # jeda hening buatan antar-giliran di dalam satu jendela
+LANG_MODEL = "tiny"
 
 
 def fmt_time(sec: float) -> str:
@@ -67,6 +73,51 @@ def group_turns(segments: list[dict]) -> list[dict]:
     return turns
 
 
+def _clip(audio: np.ndarray, turn: dict) -> np.ndarray:
+    a = max(0, int((turn["start"] - PAD_SEC) * SAMPLE_RATE))
+    b = min(audio.size, int((turn["end"] + PAD_SEC) * SAMPLE_RATE))
+    return audio[a:b]
+
+
+def pack_windows(turns: list[dict], clips: list[np.ndarray],
+                 max_sec: float = MAX_TURN_SEC) -> list[dict]:
+    """Kemas giliran berurutan yang berbahasa sama ke jendela <= max_sec.
+
+    Setiap jendela berisi audio gabungan dan fungsi `locate(detik)` yang
+    mengembalikan indeks giliran pemilik detik tersebut di dalam jendela."""
+    sep = np.zeros(int(SEP_SEC * SAMPLE_RATE), dtype=np.float32)
+    groups: list[list[int]] = []
+    for i, (t, c) in enumerate(zip(turns, clips)):
+        if groups:
+            g = groups[-1]
+            used = sum(clips[j].size for j in g) + sep.size * len(g)
+            if (turns[g[-1]]["language"] == t["language"]
+                    and (used + c.size) / SAMPLE_RATE <= max_sec):
+                g.append(i)
+                continue
+        groups.append([i])
+
+    windows = []
+    for g in groups:
+        parts, spans, pos = [], [], 0
+        for k, j in enumerate(g):
+            if k:
+                parts.append(sep)
+                pos += sep.size
+            parts.append(clips[j])
+            spans.append((pos / SAMPLE_RATE, (pos + clips[j].size) / SAMPLE_RATE, j))
+            pos += clips[j].size
+
+        def locate(sec: float, spans=spans) -> int:
+            # giliran yang memuat detik ini, atau yang terdekat (di dalam jeda)
+            return min(spans, key=lambda s: 0 if s[0] <= sec <= s[1]
+                       else min(abs(sec - s[0]), abs(sec - s[1])))[2]
+
+        windows.append({"audio": np.concatenate(parts), "language": turns[g[0]]["language"],
+                        "locate": locate})
+    return windows
+
+
 def render_markdown(session: dict, turns: list[dict], model: str, duration: float) -> str:
     speakers = sorted({t["speaker"] for t in turns if t["speaker"] != "?"})
     lines = [
@@ -99,7 +150,7 @@ def render_markdown(session: dict, turns: list[dict], model: str, duration: floa
 
 def transcribe_session(
     session_dir: Path,
-    model_size: str = "medium",
+    model_size: str = "large-v3-turbo",
     language: str | None = "id",
     progress: Callable[[float, str], None] = lambda p, msg: None,
 ) -> Path:
@@ -112,27 +163,45 @@ def transcribe_session(
     total = sum(t["end"] - t["start"] for t in turns) or 1.0
 
     device, compute_type = pick_device()
-    progress(0.0, f"Memuat model {model_size} ({device}). Pertama kali: model diunduh dulu...")
-    model = WhisperModel(model_size, device=device, compute_type=compute_type)
+    clips = [_clip(audio, t) for t in turns]
 
-    done = 0.0
-    for i, t in enumerate(turns, 1):
-        a = max(0, int((t["start"] - PAD_SEC) * SAMPLE_RATE))
-        b = min(audio.size, int((t["end"] + PAD_SEC) * SAMPLE_RATE))
-        segs, info = model.transcribe(
-            audio[a:b],
-            language=language or None,
+    # 1. Bahasa per giliran
+    if language:
+        for t in turns:
+            t["language"] = language
+    else:
+        progress(0.0, "Mendeteksi bahasa tiap giliran...")
+        detector = WhisperModel(LANG_MODEL, device=device, compute_type=compute_type)
+        for i, (t, c) in enumerate(zip(turns, clips), 1):
+            t["language"] = detector.detect_language(c)[0]
+            progress(0.1 * i / len(turns), f"Mendeteksi bahasa {i}/{len(turns)}")
+        del detector
+
+    # 2-3. Kemas, transkripsi, kembalikan kata ke gilirannya
+    progress(0.1, f"Memuat model {model_size} ({device}). Pertama kali: model diunduh dulu...")
+    model = WhisperModel(model_size, device=device, compute_type=compute_type)
+    windows = pack_windows(turns, clips)
+    for t in turns:
+        t["text"] = ""
+    for w_i, win in enumerate(windows, 1):
+        segs, _ = model.transcribe(
+            win["audio"],
+            language=win["language"],
             beam_size=5,
+            word_timestamps=True,
             condition_on_previous_text=False,
             vad_filter=False,  # sudah dipotong oleh VAD saat rapat
         )
-        t["text"] = " ".join(s.text.strip() for s in segs).strip()
-        t["language"] = info.language
-        done += t["end"] - t["start"]
-        progress(min(done / total, 0.99),
-                 f"Mentranskripsi giliran {i}/{len(turns)} ({fmt_time(t['start'])})")
+        words = [w for s in segs for w in (s.words or [])]
+        for w in words:
+            idx = win["locate"]((w.start + w.end) / 2)
+            turns[idx]["text"] += w.word
+        progress(0.1 + 0.89 * w_i / len(windows),
+                 f"Mentranskripsi bagian {w_i}/{len(windows)}")
 
-    turns = [t for t in turns if t.get("text")]
+    for t in turns:
+        t["text"] = t["text"].strip()
+    turns = [t for t in turns if t["text"]]
     md = render_markdown(session, turns, model_size, duration)
     out = session_dir / OUTPUT_MD
     out.write_text(md, encoding="utf-8")
@@ -148,7 +217,7 @@ def transcribe_session(
 def main() -> None:
     ap = argparse.ArgumentParser(description="Transkripsi sesi Tukang Catat")
     ap.add_argument("session_dir", type=Path)
-    ap.add_argument("--model", default="medium")
+    ap.add_argument("--model", default="large-v3-turbo")
     ap.add_argument("--language", default="auto", help="kode bahasa, atau 'auto'")
     args = ap.parse_args()
     lang = None if args.language == "auto" else args.language

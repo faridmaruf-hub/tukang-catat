@@ -34,16 +34,17 @@ Artinya, **komputer yang lambat pun tetap bisa dipakai saat rapat**. Bedanya han
 - CPU: 8 core atau lebih (mis. Intel Core i5/i7 gen 11+, AMD Ryzen 5/7 5000+, Apple M1 ke atas)
 - RAM: 16 GB
 - Disk kosong: 20 GB
-- Model Whisper: `medium` atau `large-v3-turbo`
-- Perkiraan: ~20–45 menit transkripsi untuk 1 jam rapat. Akurasi baik untuk bahasa Indonesia dan campuran Indonesia–Inggris.
+- Model Whisper: **`large-v3-turbo`** (akurasi terbaik di CPU), atau `small` jika ingin cepat
+- Terukur: ~30 menit (`large-v3-turbo`) / ~13 menit (`small`) transkripsi untuk 1 jam rapat. Lihat [hasil pengukuran](#hasil-pengukuran).
 
 ### Optimal
 - GPU NVIDIA dengan VRAM 6 GB atau lebih (mis. RTX 3060, RTX 4060) dan driver CUDA terbaru
 - RAM: 16 GB
 - Model Whisper: `large-v3`
-- Perkiraan: ~3–6 menit transkripsi untuk 1 jam rapat. Akurasi terbaik.
+- Perkiraan (belum diukur): beberapa menit transkripsi untuk 1 jam rapat. Akurasi terbaik.
 
-> Semua perkiraan waktu bersifat kasar dan akan diperbarui setelah pengukuran nyata pada prototipe.
+> Mengapa tidak `medium`? Di CPU, `large-v3-turbo` umumnya lebih akurat dan tidak lebih lambat
+> daripada `medium`, karena bagian pembangkit teksnya jauh lebih ramping (4 lapis vs 24 lapis).
 
 ## Ukuran model Whisper
 
@@ -93,4 +94,20 @@ Kualitas rekaman sangat memengaruhi akurasi transkripsi **dan** pengenalan pembi
 | CPU | Intel Core i5-12600H (12 core / 16 thread) |
 | RAM | 24 GB |
 | GPU | Intel Iris Xe (terintegrasi, tidak dipakai untuk transkripsi) |
-| Hasil `cek_hardware.py` | **DIREKOMENDASIKAN**: `medium` / `large-v3-turbo` di CPU |
+| Hasil `cek_hardware.py` | **DIREKOMENDASIKAN**: `large-v3-turbo` di CPU |
+
+## Hasil pengukuran
+
+Diukur pada komputer pengembangan di atas (CPU saja), 25 November 2026, memakai
+rekaman uji suara sintetis berbahasa Indonesia berdurasi 2 menit 41 detik.
+Waktu sudah termasuk memuat model.
+
+| Tahap | Waktu | Setara per 1 jam rapat |
+|---|---|---|
+| Proses live saat rapat (deteksi suara + sidik suara) | 5,5 dtk | ~2 menit, tersebar sepanjang rapat (beban CPU ~3%) |
+| Transkripsi `small` | 35 dtk | ~13 menit |
+| Transkripsi `large-v3-turbo` | 81 dtk | ~30 menit |
+
+Catatan:
+- Rapat dengan bahasa yang sering berganti (mis. Indonesia–Inggris bergantian tiap giliran) bisa lebih lambat, karena giliran berbahasa berbeda tidak dapat dikemas dalam satu jendela transkripsi.
+- Suara sintetis lebih "bersih" daripada rapat sungguhan, jadi akurasi di rapat nyata akan sedikit lebih rendah. Kecepatannya kurang lebih sama.

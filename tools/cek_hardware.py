@@ -91,10 +91,9 @@ def recommend(cores, ram, gpu, apple_silicon):
         return "OPTIMAL", "large-v3 (GPU/CUDA)", "~3-6 menit per 1 jam rapat"
     if gpu and gpu[1] >= 4:
         return "OPTIMAL", "large-v3-turbo (GPU/CUDA)", "~5-10 menit per 1 jam rapat"
-    if apple_silicon and ram >= 16:
-        return "DIREKOMENDASIKAN", "medium / large-v3-turbo (CPU)", "~20-45 menit per 1 jam rapat"
-    if cores >= 8 and ram >= 16:
-        return "DIREKOMENDASIKAN", "medium / large-v3-turbo (CPU)", "~20-45 menit per 1 jam rapat"
+    if (apple_silicon or cores >= 8) and ram >= 16:
+        return ("DIREKOMENDASIKAN", "large-v3-turbo (CPU); small jika ingin cepat",
+                "~30 menit (turbo) / ~13 menit (small) per 1 jam rapat")
     if cores >= 4 and ram >= 8:
         return "MINIMUM", "small (CPU)", "~15-30 menit per 1 jam rapat"
     return "KURANG", "base atau tiny (CPU, akurasi rendah)", "bisa lebih lama dari durasi rapat"

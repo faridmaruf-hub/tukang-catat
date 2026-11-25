@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tukang Catat</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Tukang Catat</div>
+    <div id="rec-status" class="rec-status" hidden>
+      <span class="dot"></span>
+      <span id="timer">00:00:00</span>
+      <div class="meter"><div id="meter-fill"></div></div>
+      <button id="btn-stop" class="btn danger">Berhenti</button>
+    </div>
+  </header>
+
+  <!-- 1. Persiapan -->
+  <main id="view-setup" class="view narrow">
+    <h1>Rapat baru</h1>
+    <label>Judul rapat
+      <input id="in-title" placeholder="mis. Rapat Evaluasi Kuartal III">
+    </label>
+    <label>Daftar peserta <span class="hint">(opsional, satu nama per baris; muncul sebagai pilihan saat ditanya "Siapa ini?")</span>
+      <textarea id="in-participants" rows="5" placeholder="Pak Ahmad&#10;Bu Rina&#10;Mas Dodi"></textarea>
+    </label>
+    <label>Kepekaan pembeda suara: <b id="th-value">0.65</b>
+      <input id="in-threshold" type="range" min="0.40" max="0.90" step="0.01" value="0.65">
+      <span class="hint">Lebih tinggi = lebih cepat menganggap suara sebagai orang baru (lebih sering bertanya).
+        Lebih rendah = lebih mudah menganggap suara mirip sebagai orang yang sama.</span>
+    </label>
+    <button id="btn-start" class="btn primary big">● Mulai Rekam</button>
+    <p id="setup-error" class="error" hidden></p>
+  </main>
+
+  <!-- 2. Rekam & labeli -->
+  <main id="view-live" class="view live" hidden>
+    <section class="panel timeline-panel">
+      <h2>Garis waktu pembicaraan</h2>
+      <p class="hint">Klik nama pada sebuah baris untuk mengoreksinya.</p>
+      <ol id="timeline" class="timeline"></ol>
+    </section>
+    <aside class="side">
+      <section class="panel">
+        <h2>Siapa ini? <span id="q-count" class="badge">0</span></h2>
+        <div id="questions"><p class="hint empty">Belum ada pertanyaan. Saat terdeteksi suara baru, pertanyaan akan muncul di sini.
+          Rekaman tetap berjalan, jadi Anda bisa menjawab kapan saja.</p></div>
+      </section>
+      <section class="panel">
+        <h2>Pembicara dikenal</h2>
+        <ul id="speakers" class="speakers"></ul>
+      </section>
+      <section id="transcribe-panel" class="panel" hidden>
+        <h2>Transkripsi</h2>
+        <p class="hint">Rekaman selesai. Pastikan semua pembicara sudah diberi nama, lalu jalankan transkripsi.</p>
+        <label>Model Whisper
+          <select id="in-model">
+            <option value="small">small: cepat, akurasi cukup</option>
+            <option value="medium" selected>medium: seimbang</option>
+            <option value="large-v3-turbo">large-v3-turbo: akurat</option>
+            <option value="large-v3">large-v3: paling akurat, paling lambat</option>
+          </select>
+        </label>
+        <label>Bahasa
+          <select id="in-lang">
+            <option value="auto" selected>Otomatis per giliran (disarankan)</option>
+            <option value="id">Paksa bahasa Indonesia</option>
+            <option value="en">Paksa bahasa Inggris</option>
+          </select>
+        </label>
+        <button id="btn-transcribe" class="btn primary">Mulai Transkripsi</button>
+        <div id="progress" class="progress" hidden><div id="progress-fill"></div></div>
+        <p id="progress-msg" class="hint"></p>
+        <div id="downloads" class="downloads" hidden>
+          <a id="dl-md" class="btn">Unduh transkrip (.md)</a>
+          <button id="btn-copy" class="btn">Salin transkrip</button>
+          <a id="dl-wav" class="btn ghost">Unduh audio (.wav)</a>
+          <a href="/" class="btn ghost">Rapat baru</a>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <datalist id="names"></datalist>
+  <script src="/static/app.js"></script>
+</body>
+</html>

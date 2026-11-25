@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Data rapat (jangan pernah di-commit: privat)
+recordings/
+transcripts/
+*.wav
+*.mp3
+*.m4a
+*.webm
+
+# Model yang diunduh
+models/
+
+# Lingkungan & editor
+.env
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.claude/settings.local.json

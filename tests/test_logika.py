@@ -46,6 +46,18 @@ class TestSpeakerTracker(unittest.TestCase):
         self.assertTrue(m.is_new)
 
 
+    def test_rebuild_sidik_suara_setelah_koreksi(self):
+        t = SpeakerTracker(threshold=0.6)
+        a = t.identify(voice(1), 3.0).speaker_id
+        b = t.new_speaker("Bu Rina")
+        # notulis memindahkan potongan bersuara "2" ke Bu Rina
+        t.rebuild(b, [(voice(2), 3.0)])
+        best, _ = t.best_match(voice(2, noise=0.3))
+        self.assertEqual(best, b)
+        t.rebuild(a, [])
+        self.assertIsNone(t.speakers[a]._sum)  # tanpa potongan = tanpa sidik suara
+
+
 class TestGroupTurns(unittest.TestCase):
     def test_gabung_potongan_berurutan_orang_sama(self):
         segs = [

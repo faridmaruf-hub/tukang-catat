@@ -84,7 +84,21 @@ async def ws_session(ws: WebSocket, sid: str) -> None:
                 continue
             data = json.loads(msg.get("text") or "{}")
             kind = data.get("type")
-            if kind == "label":
+            if kind in ("override", "undo"):
+                # Tombol channel ditekan / batalkan koreksi terakhir.
+                if kind == "override":
+                    target = data.get("target")
+                    target = int(target) if isinstance(target, int) else (
+                        str(target) if target else None)
+                    events = await asyncio.to_thread(sess.override, target)
+                else:
+                    events = await asyncio.to_thread(sess.undo)
+                for ev in events:
+                    await ws.send_json(ev)
+                continue
+            if kind == "add_participant":
+                sess.add_participant(str(data.get("name", "")))
+            elif kind == "label":
                 sess.label(int(data["speaker_id"]), str(data["name"]))
             elif kind == "reassign":
                 sess.reassign(int(data["segment_id"]), str(data["name"]))

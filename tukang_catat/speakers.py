@@ -85,6 +85,25 @@ class SpeakerTracker:
         self.speakers[spk.id] = spk
         return Match(spk.id, best_score, is_new=True)
 
+    # ------------------------------------------------- dipakai saat override
+    def new_speaker(self, name: str | None = None) -> int:
+        spk = Speaker(id=self._next_id, name=name.strip() if name else None)
+        self._next_id += 1
+        self.speakers[spk.id] = spk
+        return spk.id
+
+    def rebuild(self, speaker_id: int, items: list[tuple[np.ndarray, float]]) -> None:
+        """Bangun ulang sidik suara dari potongan-potongan miliknya
+        (dipakai setelah notulis memindahkan potongan antar-pembicara)."""
+        spk = self.speakers[speaker_id]
+        spk._sum, spk.count = None, 0
+        for emb, weight in items:
+            if weight > 0:
+                spk.add(_normalize(emb), weight)
+
+    def remove(self, speaker_id: int) -> None:
+        self.speakers.pop(speaker_id, None)
+
     # --------------------------------------------------------- pelabelan
     def find_by_name(self, name: str) -> Speaker | None:
         key = name.strip().casefold()
@@ -115,12 +134,7 @@ class SpeakerTracker:
     def ensure_named(self, name: str) -> int:
         """Id pembicara bernama `name`; dibuat (tanpa sidik suara) jika belum ada."""
         existing = self.find_by_name(name)
-        if existing:
-            return existing.id
-        spk = Speaker(id=self._next_id, name=name.strip())
-        self._next_id += 1
-        self.speakers[spk.id] = spk
-        return spk.id
+        return existing.id if existing else self.new_speaker(name)
 
     def to_list(self) -> list[dict]:
         return [s.to_dict() for s in self.speakers.values()]

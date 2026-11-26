@@ -69,13 +69,23 @@ python run.py
 
 Browser terbuka di `http://127.0.0.1:8765`.
 
+![Konsol peserta (tema malam)](docs/gambar/konsol-malam.png)
+
 1. **Persiapan.** Isi judul rapat dan (opsional) daftar peserta, lalu klik **Mulai Rekam**. Izinkan akses mikrofon.
-2. **Saat rapat.** Setiap kali terdeteksi suara baru, muncul kartu **"Siapa ini?"** lengkap dengan contoh suaranya. Ketik atau pilih nama. Rekaman tidak berhenti, jadi pertanyaan bisa dijawab kapan saja.
-   - Orang yang sama **tidak akan ditanya lagi**.
-   - Jika mesin keliru menganggap orang yang sudah dikenal sebagai orang baru, cukup pilih nama yang sudah ada: keduanya digabung.
-   - Klik nama pada garis waktu untuk mengoreksi satu potongan bicara.
+2. **Saat rapat: konsol peserta.** Cara kerjanya mirip mengoperasikan mixer FOH. Setiap peserta adalah satu *channel strip* dengan lampu LED, meter waktu bicara, dan nama.
+   - **LED hijau** menyala pada channel yang menurut aplikasi sedang bicara.
+   - **Tekan channel seseorang** (atau tombol angkanya, `1`–`9`) saat dia bicara, kalau aplikasi keliru atau ragu. Channel berkedip kuning, lalu aplikasi **mendengarkan ~2 detik lagi dan mundur sendiri** (sampai 20 detik) untuk mencari awal kalimat orang itu. Jadi terlambat menekan beberapa detik tidak masalah.
+   - Channel yang ditekan **tetap terbuka**: kalimat berikutnya tetap milik orang itu, kecuali ada suara lain yang jelas berbeda. Ini sangat membantu untuk audio lewat speaker (TV, peserta Zoom), di mana suara semua orang terdengar mirip.
+   - **Orang baru** (`N`): ada yang bicara tapi belum punya channel. Aplikasi mencari awal suaranya dan memunculkan kartu **"Siapa ini?"**.
+   - **Tambah peserta** (`P`): peserta yang datang terlambat atau belum terdaftar.
+   - **Batalkan** (`Ctrl`+`Z`): membatalkan koreksi terakhir.
+   - Aplikasi **belajar dari setiap koreksi**: sidik suara orang itu diperbarui dari potongan yang Anda tetapkan.
+   - Kartu **"Siapa ini?"** tetap muncul untuk suara baru yang terdeteksi otomatis. Orang yang sama tidak ditanya lagi. Jika ternyata orang yang sudah dikenal, pilih namanya: keduanya digabung.
+   - Klik nama pada garis waktu untuk mengoreksi satu potongan (tanda ✋ = dikoreksi notulis).
 3. **Setelah rapat.** Klik **Berhenti**, pilih model Whisper, lalu **Mulai Transkripsi**.
 4. Unduh atau salin `transkrip.md`, lalu berikan ke Claude untuk dibuatkan notula.
+
+Tombol **☾ Malam / ☀ Siang** di kanan atas mengganti tema tampilan. Pilihan Anda diingat browser.
 
 Semua data tersimpan di `recordings/<tanggal-jam>/` (`audio.wav`, `session.json`, `transkrip.md`, `transkrip.json`). Folder ini tidak ikut ter-commit ke git.
 
@@ -113,9 +123,10 @@ Lebih baik sedikit terlalu sering bertanya, karena itu mudah dikoreksi dengan me
 Penjelasan lengkap, termasuk catatan untuk Mac: **[docs/KEBUTUHAN-HARDWARE.md](docs/KEBUTUHAN-HARDWARE.md)**.
 
 ## Keterbatasan prototipe
+- **Audio lewat speaker** (TV, rekaman, peserta Zoom dari speaker laptop) membuat suara semua orang terdengar mirip, karena "jalur" suaranya sama. Pengenalan otomatis jadi lemah, dan di kondisi ini notulis perlu aktif menekan channel. Pada simulasi kondisi TV, ketepatan label naik dari 47% (otomatis) menjadi 76–93% dengan notulis yang menekan channel 1–5 detik terlambat.
 - Dua orang yang bicara **bersamaan** dilabeli sebagai salah satu dari mereka.
 - Ucapan sangat pendek (di bawah ~1,5 detik) dari suara yang belum dikenal dilabeli `?`. Label ini dicocokkan ulang otomatis setelah orangnya dikenali.
-- Pergantian pembicara tanpa jeda sama sekali bisa masuk ke satu potongan.
+- Pergantian pembicara tanpa jeda sama sekali bisa masuk ke satu potongan, kecuali notulis menekan channel (potongan akan dibelah di titik pergantian).
 - Ambang kepekaan default belum dikalibrasi dengan rekaman rapat sungguhan.
 
 ## Pengembangan

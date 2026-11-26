@@ -4,6 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tukang Catat</title>
+  <script>
+    // Terapkan tema sebelum halaman digambar, supaya tidak "berkedip".
+    document.documentElement.dataset.theme = localStorage.getItem("tema") ||
+      (matchMedia("(prefers-color-scheme: dark)").matches ? "malam" : "siang");
+  </script>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -11,9 +16,12 @@
     <div class="brand">Tukang Catat</div>
     <div id="rec-status" class="rec-status" hidden>
       <span class="dot"></span>
-      <span id="timer">00:00:00</span>
-      <div class="meter"><div id="meter-fill"></div></div>
-      <button id="btn-stop" class="btn danger">Berhenti</button>
+      <span id="timer" class="mono">00:00:00</span>
+      <div class="vu" title="Level mikrofon"><div id="vu-fill"></div></div>
+    </div>
+    <div class="top-actions">
+      <button id="btn-theme" class="btn ghost" title="Ganti tema siang / malam"></button>
+      <button id="btn-stop" class="btn danger" hidden>■ Berhenti</button>
     </div>
   </header>
 
@@ -23,7 +31,7 @@
     <label>Judul rapat
       <input id="in-title" placeholder="mis. Rapat Evaluasi Kuartal III">
     </label>
-    <label>Daftar peserta <span class="hint">(opsional, satu nama per baris; muncul sebagai pilihan saat ditanya "Siapa ini?")</span>
+    <label>Daftar peserta <span class="hint">(opsional, satu nama per baris. Tiap peserta menjadi satu channel di konsol; peserta bisa ditambah di tengah rapat)</span>
       <textarea id="in-participants" rows="5" placeholder="Pak Ahmad&#10;Bu Rina&#10;Mas Dodi"></textarea>
     </label>
     <label>Kepekaan pembeda suara: <b id="th-value">0.65</b>
@@ -35,52 +43,61 @@
     <p id="setup-error" class="error" hidden></p>
   </main>
 
-  <!-- 2. Rekam & labeli -->
-  <main id="view-live" class="view live" hidden>
-    <section class="panel timeline-panel">
-      <h2>Garis waktu pembicaraan</h2>
-      <p class="hint">Klik nama pada sebuah baris untuk mengoreksinya.</p>
-      <ol id="timeline" class="timeline"></ol>
+  <!-- 2. Rekam: konsol + garis waktu -->
+  <main id="view-live" class="view" hidden>
+    <section class="console-wrap">
+      <div class="console-head">
+        <h2>Konsol peserta</h2>
+        <span class="hint">Tekan channel (atau tombol angkanya) saat orang itu bicara.
+          Aplikasi akan mundur sendiri untuk mencari awal kalimatnya.
+          <kbd>N</kbd> orang baru · <kbd>P</kbd> tambah peserta · <kbd>Ctrl</kbd>+<kbd>Z</kbd> batalkan</span>
+      </div>
+      <div id="console" class="console"></div>
+      <div id="toast" class="toast" hidden></div>
     </section>
-    <aside class="side">
+
+    <div class="live-grid">
       <section class="panel">
-        <h2>Siapa ini? <span id="q-count" class="badge">0</span></h2>
-        <div id="questions"><p class="hint empty">Belum ada pertanyaan. Saat terdeteksi suara baru, pertanyaan akan muncul di sini.
-          Rekaman tetap berjalan, jadi Anda bisa menjawab kapan saja.</p></div>
+        <h2>Garis waktu pembicaraan</h2>
+        <p class="hint">Klik nama pada sebuah baris untuk mengoreksinya. Tanda ✋ = dikoreksi notulis.</p>
+        <ol id="timeline" class="timeline"></ol>
       </section>
-      <section class="panel">
-        <h2>Pembicara dikenal</h2>
-        <ul id="speakers" class="speakers"></ul>
-      </section>
-      <section id="transcribe-panel" class="panel" hidden>
-        <h2>Transkripsi</h2>
-        <p class="hint">Rekaman selesai. Pastikan semua pembicara sudah diberi nama, lalu jalankan transkripsi.</p>
-        <label>Model Whisper
-          <select id="in-model">
-            <option value="large-v3-turbo" selected>large-v3-turbo: akurat (disarankan)</option>
-            <option value="small">small: cepat, akurasi cukup</option>
-            <option value="medium">medium</option>
-            <option value="large-v3">large-v3: paling akurat, butuh GPU</option>
-          </select>
-        </label>
-        <label>Bahasa
-          <select id="in-lang">
-            <option value="auto" selected>Otomatis per giliran (disarankan)</option>
-            <option value="id">Paksa bahasa Indonesia</option>
-            <option value="en">Paksa bahasa Inggris</option>
-          </select>
-        </label>
-        <button id="btn-transcribe" class="btn primary">Mulai Transkripsi</button>
-        <div id="progress" class="progress" hidden><div id="progress-fill"></div></div>
-        <p id="progress-msg" class="hint"></p>
-        <div id="downloads" class="downloads" hidden>
-          <a id="dl-md" class="btn">Unduh transkrip (.md)</a>
-          <button id="btn-copy" class="btn">Salin transkrip</button>
-          <a id="dl-wav" class="btn ghost">Unduh audio (.wav)</a>
-          <a href="/" class="btn ghost">Rapat baru</a>
-        </div>
-      </section>
-    </aside>
+      <aside class="side">
+        <section class="panel">
+          <h2>Siapa ini? <span id="q-count" class="badge zero">0</span></h2>
+          <div id="questions"><p class="hint empty">Belum ada pertanyaan. Saat ada suara baru, pertanyaan muncul di sini.
+            Rekaman tetap berjalan, jadi Anda bisa menjawab kapan saja.</p></div>
+        </section>
+        <section id="transcribe-panel" class="panel" hidden>
+          <h2>Transkripsi</h2>
+          <p class="hint">Rekaman selesai. Pastikan semua pembicara sudah diberi nama, lalu jalankan transkripsi.</p>
+          <label>Model Whisper
+            <select id="in-model">
+              <option value="large-v3-turbo" selected>large-v3-turbo: akurat (disarankan)</option>
+              <option value="small">small: cepat, akurasi cukup</option>
+              <option value="medium">medium</option>
+              <option value="large-v3">large-v3: paling akurat, butuh GPU</option>
+            </select>
+          </label>
+          <label>Bahasa
+            <select id="in-lang">
+              <option value="auto" selected>Otomatis per giliran (disarankan)</option>
+              <option value="id">Paksa bahasa Indonesia</option>
+              <option value="en">Paksa bahasa Inggris</option>
+            </select>
+          </label>
+          <button id="btn-transcribe" class="btn primary">Mulai Transkripsi</button>
+          <div id="progress" class="progress" hidden><div id="progress-fill"></div></div>
+          <p id="progress-msg" class="hint"></p>
+          <div id="downloads" class="downloads" hidden>
+            <a id="dl-md" class="btn">Unduh transkrip (.md)</a>
+            <button id="btn-copy" class="btn">Salin transkrip</button>
+            <a id="dl-wav" class="btn ghost">Unduh audio (.wav)</a>
+            <a href="/" class="btn ghost">Rapat baru</a>
+          </div>
+        </section>
+      </aside>
+    </div>
   </main>
 
   <datalist id="names"></datalist>

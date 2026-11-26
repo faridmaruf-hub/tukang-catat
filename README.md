@@ -59,6 +59,10 @@ Model Whisper (ratusan MB sampai ~3 GB) diunduh otomatis saat transkripsi pertam
 
 ## Pemakaian
 
+**Windows:** klik dua kali **`Jalankan Tukang Catat.bat`** di folder proyek. Saat pertama kali, file ini juga memasang semua kebutuhan.
+
+Atau lewat terminal, dari dalam folder proyek:
+
 ```bash
 python run.py
 ```
